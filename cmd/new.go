@@ -6,9 +6,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"wk/internal/config"
-	"wk/internal/hooks"
-	"wk/internal/worktree"
+	"github.com/lucas-stellet/wk/internal/config"
+	"github.com/lucas-stellet/wk/internal/hooks"
+	"github.com/lucas-stellet/wk/internal/worktree"
 )
 
 var newCmd = &cobra.Command{

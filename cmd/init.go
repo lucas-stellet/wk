@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
-	"wk/internal/config"
+	"github.com/lucas-stellet/wk/internal/config"
 )
 
 var initCmd = &cobra.Command{

@@ -1,4 +1,4 @@
-module wk
+module github.com/lucas-stellet/wk
 
 go 1.23.1
 

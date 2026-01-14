@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"wk/internal/worktree"
+	"github.com/lucas-stellet/wk/internal/worktree"
 )
 
 var removeCmd = &cobra.Command{
