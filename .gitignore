@@ -1,0 +1,16 @@
+# Binary
+wk
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Test config
+.wk.yaml
+
+# Claude Code
+.claude/
+.spec-workflow/
