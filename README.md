@@ -4,11 +4,26 @@ A CLI tool to simplify git worktree management with automatic file copying and p
 
 ## Installation
 
+### Quick install (Linux/macOS)
+
+```bash
+curl -sSL https://raw.githubusercontent.com/lucas-stellet/wk/main/install.sh | sh
+```
+
+### Homebrew (macOS/Linux)
+
+```bash
+brew tap lucas-stellet/wk
+brew install wk
+```
+
+### Go install
+
 ```bash
 go install github.com/lucas-stellet/wk@latest
 ```
 
-Or build from source:
+### Build from source
 
 ```bash
 git clone https://github.com/lucas-stellet/wk.git
