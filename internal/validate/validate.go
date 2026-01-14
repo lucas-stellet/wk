@@ -42,9 +42,14 @@ func CheckConfig() (exists, valid bool, err error) {
 }
 
 // RunPreValidation performs validation checks before command execution.
-// It skips validation for help commands and config checks for init.
+// It skips validation for help, version, and update commands.
 func RunPreValidation(cmd *cobra.Command) error {
 	if isHelpCommand(cmd) {
+		return nil
+	}
+
+	// Skip validation for commands that don't need git repo
+	if shouldSkipValidation(cmd) {
 		return nil
 	}
 
@@ -81,5 +86,17 @@ func isHelpCommand(cmd *cobra.Command) bool {
 		return true
 	}
 
+	return false
+}
+
+// shouldSkipValidation returns true for commands that don't need git repo validation.
+func shouldSkipValidation(cmd *cobra.Command) bool {
+	skipCommands := []string{"version", "update", "completion"}
+	name := cmd.Name()
+	for _, skip := range skipCommands {
+		if name == skip {
+			return true
+		}
+	}
 	return false
 }
