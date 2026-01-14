@@ -85,6 +85,9 @@ func PerformUpdate(info *Info) error {
 		return fmt.Errorf("failed to resolve symlinks: %w", err)
 	}
 
+	// Check if we need elevated permissions
+	needsSudo := requiresElevatedPermissions(execPath)
+
 	// Create temp directory
 	tmpDir, err := os.MkdirTemp("", "wk-update-*")
 	if err != nil {
@@ -104,22 +107,100 @@ func PerformUpdate(info *Info) error {
 		return fmt.Errorf("failed to extract update: %w", err)
 	}
 
-	// Create backup of current binary
+	// Install the binary (with sudo if needed)
+	if needsSudo {
+		return installWithSudo(newBinaryPath, execPath)
+	}
+
+	return installDirect(newBinaryPath, execPath)
+}
+
+// requiresElevatedPermissions checks if the target directory needs sudo.
+func requiresElevatedPermissions(execPath string) bool {
+	dir := filepath.Dir(execPath)
+
+	// Try to create a temp file in the directory
+	testFile := filepath.Join(dir, ".wk-write-test")
+	f, err := os.Create(testFile)
+	if err != nil {
+		return true
+	}
+	f.Close()
+	os.Remove(testFile)
+	return false
+}
+
+// installWithSudo installs the binary using sudo.
+func installWithSudo(newBinaryPath, execPath string) error {
 	backupPath := execPath + ".backup"
+
+	fmt.Println("Elevated permissions required. Using sudo...")
+
+	// Backup current binary
+	cmd := exec.Command("sudo", "mv", execPath, backupPath)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to backup current binary: %w", err)
+	}
+
+	// Copy new binary
+	cmd = exec.Command("sudo", "cp", newBinaryPath, execPath)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		// Rollback
+		exec.Command("sudo", "mv", backupPath, execPath).Run()
+		return fmt.Errorf("failed to install new binary: %w", err)
+	}
+
+	// Set permissions
+	cmd = exec.Command("sudo", "chmod", "755", execPath)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		// Rollback
+		exec.Command("sudo", "rm", execPath).Run()
+		exec.Command("sudo", "mv", backupPath, execPath).Run()
+		return fmt.Errorf("failed to set permissions: %w", err)
+	}
+
+	// Verify
+	verifyCmd := exec.Command(execPath, "--help")
+	if _, err := verifyCmd.CombinedOutput(); err != nil {
+		// Rollback
+		exec.Command("sudo", "rm", execPath).Run()
+		exec.Command("sudo", "mv", backupPath, execPath).Run()
+		return fmt.Errorf("new binary verification failed, rolled back: %w", err)
+	}
+
+	// Remove backup
+	exec.Command("sudo", "rm", backupPath).Run()
+
+	InvalidateCache()
+	return nil
+}
+
+// installDirect installs the binary without sudo.
+func installDirect(newBinaryPath, execPath string) error {
+	backupPath := execPath + ".backup"
+
+	// Create backup of current binary
 	if err := os.Rename(execPath, backupPath); err != nil {
 		return fmt.Errorf("failed to backup current binary: %w", err)
 	}
 
 	// Move new binary to target location
 	if err := copyFile(newBinaryPath, execPath); err != nil {
-		// Rollback on failure
 		os.Rename(backupPath, execPath)
 		return fmt.Errorf("failed to install new binary: %w", err)
 	}
 
 	// Make executable
 	if err := os.Chmod(execPath, 0755); err != nil {
-		// Rollback on failure
 		os.Remove(execPath)
 		os.Rename(backupPath, execPath)
 		return fmt.Errorf("failed to set permissions: %w", err)
@@ -129,7 +210,6 @@ func PerformUpdate(info *Info) error {
 	cmd := exec.Command(execPath, "--help")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		// Rollback on failure
 		os.Remove(execPath)
 		os.Rename(backupPath, execPath)
 		return fmt.Errorf("new binary verification failed, rolled back: %w\nOutput: %s", err, string(output))
@@ -138,9 +218,7 @@ func PerformUpdate(info *Info) error {
 	// Remove backup
 	os.Remove(backupPath)
 
-	// Invalidate cache after successful update
 	InvalidateCache()
-
 	return nil
 }
 
