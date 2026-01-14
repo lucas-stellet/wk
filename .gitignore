@@ -12,5 +12,4 @@ wk
 .wk.yaml
 
 # Claude Code
-.claude/
 .spec-workflow/
