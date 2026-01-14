@@ -1,8 +1,11 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"os/exec"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -77,5 +80,35 @@ func runNew(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("\nWorktree '%s' is ready!\n", branch)
+
+	if confirmSwitchPrompt() {
+		fmt.Printf("Switching to worktree '%s'...\n", branch)
+		fmt.Println("Type 'exit' to return to the previous shell.")
+		return openNewShellAt(dstDir)
+	}
+
 	return nil
+}
+
+func confirmSwitchPrompt() bool {
+	fmt.Print("Switch to new worktree? [y/N]: ")
+	reader := bufio.NewReader(os.Stdin)
+	input, _ := reader.ReadString('\n')
+	input = strings.TrimSpace(strings.ToLower(input))
+	return input == "y" || input == "yes"
+}
+
+func openNewShellAt(dir string) error {
+	shell := os.Getenv("SHELL")
+	if shell == "" {
+		shell = "bash"
+	}
+
+	cmd := exec.Command(shell)
+	cmd.Dir = dir
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return cmd.Run()
 }

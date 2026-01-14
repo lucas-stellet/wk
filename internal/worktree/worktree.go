@@ -103,3 +103,48 @@ func GetMainWorktreePath() (string, error) {
 
 	return worktrees[0].Path, nil
 }
+
+// HasUncommittedChanges checks if there are uncommitted changes in the working directory.
+func HasUncommittedChanges() (bool, error) {
+	cmd := exec.Command("git", "status", "--porcelain")
+	output, err := cmd.Output()
+	if err != nil {
+		return false, fmt.Errorf("git status failed: %w", err)
+	}
+	return len(bytes.TrimSpace(output)) > 0, nil
+}
+
+// GetCurrentBranch returns the name of the current branch.
+func GetCurrentBranch() (string, error) {
+	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("git rev-parse failed: %w", err)
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
+// CreateStash creates a stash with the given message.
+func CreateStash(message string) error {
+	cmd := exec.Command("git", "stash", "push", "-m", message)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git stash failed: %s", strings.TrimSpace(string(output)))
+	}
+	return nil
+}
+
+// FindByBranch finds a worktree by its branch name.
+func FindByBranch(branch string) (*Worktree, error) {
+	worktrees, err := List()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, wt := range worktrees {
+		if wt.Branch == branch {
+			return &wt, nil
+		}
+	}
+	return nil, fmt.Errorf("worktree for branch '%s' not found", branch)
+}
