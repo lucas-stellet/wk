@@ -4,6 +4,7 @@ package cmd
 import (
 	"os"
 
+	"github.com/lucas-stellet/wk/internal/validate"
 	"github.com/spf13/cobra"
 )
 
@@ -15,6 +16,9 @@ var rootCmd = &cobra.Command{
 It reads .wk.yaml from your project to automatically:
   - Copy files to new worktrees
   - Run post-creation hooks`,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		return validate.RunPreValidation(cmd)
+	},
 }
 
 // Execute runs the root command.

@@ -55,6 +55,12 @@ wk remove feature-branch
 wk rm feature-branch
 ```
 
+## Requirements
+
+- Must be run inside a git repository
+- If `.wk.yaml` is not found, commands will show a hint suggesting `wk init` but will continue execution
+- If `.wk.yaml` contains invalid YAML, commands will fail with an error
+
 ## Configuration
 
 Create a `.wk.yaml` in your project root:
