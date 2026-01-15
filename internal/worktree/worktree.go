@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -19,22 +20,26 @@ type Worktree struct {
 
 // Add creates a new worktree for the given branch.
 // Returns the path where the worktree was created.
+// Worktrees are created in the standard location: ../<reponame>.worktrees/<branch>
 func Add(branch string) (string, error) {
-	cmd := exec.Command("git", "worktree", "add", branch)
+	worktreesDir, err := GetWorktreesDir()
+	if err != nil {
+		return "", err
+	}
+
+	// Create worktrees directory if it doesn't exist
+	if err := os.MkdirAll(worktreesDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create worktrees directory: %w", err)
+	}
+
+	worktreePath := filepath.Join(worktreesDir, branch)
+	cmd := exec.Command("git", "worktree", "add", worktreePath, branch)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("git worktree add failed: %s", strings.TrimSpace(string(output)))
 	}
 
-	// Parse output to find the created path
-	// Git outputs: "Preparing worktree (new branch 'branch')" or similar
-	// The path is typically "../branch" relative to current dir
-	path, err := filepath.Abs(branch)
-	if err != nil {
-		return "", err
-	}
-
-	return path, nil
+	return worktreePath, nil
 }
 
 // List returns all worktrees in the repository.
@@ -147,4 +152,104 @@ func FindByBranch(branch string) (*Worktree, error) {
 		}
 	}
 	return nil, fmt.Errorf("worktree for branch '%s' not found", branch)
+}
+
+// GetRepoName returns the repository name from the remote origin URL or directory name.
+func GetRepoName() (string, error) {
+	// Try to get from remote origin
+	cmd := exec.Command("git", "config", "--get", "remote.origin.url")
+	output, err := cmd.Output()
+	if err == nil {
+		url := strings.TrimSpace(string(output))
+		name := extractRepoName(url)
+		if name != "" {
+			return name, nil
+		}
+	}
+
+	// Fallback: use main worktree directory name
+	mainPath, err := GetMainWorktreePath()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Base(mainPath), nil
+}
+
+// extractRepoName extracts the repository name from a git URL.
+// Supports both SSH (git@github.com:user/repo.git) and HTTPS (https://github.com/user/repo.git) formats.
+func extractRepoName(url string) string {
+	// Remove trailing .git
+	url = strings.TrimSuffix(url, ".git")
+
+	// Handle SSH format: git@github.com:user/repo
+	if strings.Contains(url, ":") && strings.Contains(url, "@") {
+		parts := strings.Split(url, "/")
+		if len(parts) > 0 {
+			return parts[len(parts)-1]
+		}
+	}
+
+	// Handle HTTPS format: https://github.com/user/repo
+	parts := strings.Split(url, "/")
+	if len(parts) > 0 {
+		return parts[len(parts)-1]
+	}
+
+	return ""
+}
+
+// GetWorktreesDir returns the path to the .worktrees directory.
+func GetWorktreesDir() (string, error) {
+	repoName, err := GetRepoName()
+	if err != nil {
+		return "", err
+	}
+
+	mainPath, err := GetMainWorktreePath()
+	if err != nil {
+		return "", err
+	}
+
+	// ../reponame.worktrees
+	parentDir := filepath.Dir(mainPath)
+	return filepath.Join(parentDir, repoName+".worktrees"), nil
+}
+
+// IsInStandardLocation checks if a worktree path follows the standard pattern.
+func IsInStandardLocation(wtPath string) (bool, error) {
+	worktreesDir, err := GetWorktreesDir()
+	if err != nil {
+		return false, err
+	}
+
+	// Main worktree doesn't need to be in standard location
+	mainPath, _ := GetMainWorktreePath()
+	if wtPath == mainPath {
+		return true, nil
+	}
+
+	return strings.HasPrefix(wtPath, worktreesDir), nil
+}
+
+// Move moves a worktree to the standard location.
+func Move(wt Worktree) (string, error) {
+	worktreesDir, err := GetWorktreesDir()
+	if err != nil {
+		return "", err
+	}
+
+	// Create worktrees directory if it doesn't exist
+	if err := os.MkdirAll(worktreesDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create worktrees directory: %w", err)
+	}
+
+	newPath := filepath.Join(worktreesDir, wt.Branch)
+
+	cmd := exec.Command("git", "worktree", "move", wt.Path, newPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("git worktree move failed: %s", strings.TrimSpace(string(output)))
+	}
+
+	return newPath, nil
 }

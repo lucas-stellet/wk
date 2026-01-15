@@ -41,5 +41,31 @@ func runList(cmd *cobra.Command, args []string) error {
 		}
 		fmt.Fprintf(w, "%s\t%s\t%s\n", wt.Branch, wt.Path, commit)
 	}
-	return w.Flush()
+	if err := w.Flush(); err != nil {
+		return err
+	}
+
+	// Detect worktrees not in standard location
+	var nonStandard []worktree.Worktree
+	for _, wt := range worktrees {
+		isStandard, err := worktree.IsInStandardLocation(wt.Path)
+		if err != nil {
+			continue
+		}
+		if !isStandard {
+			nonStandard = append(nonStandard, wt)
+		}
+	}
+
+	if len(nonStandard) > 0 {
+		fmt.Println()
+		fmt.Printf("Warning: %d worktree(s) not in standard location:\n", len(nonStandard))
+		for _, wt := range nonStandard {
+			fmt.Printf("  - %s (%s)\n", wt.Branch, wt.Path)
+		}
+		fmt.Println()
+		fmt.Println("Run 'wk organize' to move them to the standard location.")
+	}
+
+	return nil
 }
