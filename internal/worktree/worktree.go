@@ -19,6 +19,7 @@ type Worktree struct {
 }
 
 // Add creates a new worktree for the given branch.
+// If the branch doesn't exist, it creates a new branch from HEAD.
 // Returns the path where the worktree was created.
 // Worktrees are created in the standard location: ../<reponame>.worktrees/<branch>
 func Add(branch string) (string, error) {
@@ -33,7 +34,16 @@ func Add(branch string) (string, error) {
 	}
 
 	worktreePath := filepath.Join(worktreesDir, branch)
-	cmd := exec.Command("git", "worktree", "add", worktreePath, branch)
+
+	var cmd *exec.Cmd
+	if BranchExists(branch) {
+		// Branch exists, just create worktree
+		cmd = exec.Command("git", "worktree", "add", worktreePath, branch)
+	} else {
+		// Branch doesn't exist, create it from HEAD
+		cmd = exec.Command("git", "worktree", "add", "-b", branch, worktreePath, "HEAD")
+	}
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("git worktree add failed: %s", strings.TrimSpace(string(output)))
@@ -127,6 +137,19 @@ func GetCurrentBranch() (string, error) {
 		return "", fmt.Errorf("git rev-parse failed: %w", err)
 	}
 	return strings.TrimSpace(string(output)), nil
+}
+
+// BranchExists checks if a branch exists locally or as a remote tracking branch.
+func BranchExists(branch string) bool {
+	// Check local branch
+	cmd := exec.Command("git", "show-ref", "--verify", "--quiet", "refs/heads/"+branch)
+	if cmd.Run() == nil {
+		return true
+	}
+
+	// Check remote tracking branch
+	cmd = exec.Command("git", "show-ref", "--verify", "--quiet", "refs/remotes/origin/"+branch)
+	return cmd.Run() == nil
 }
 
 // CreateStash creates a stash with the given message.
