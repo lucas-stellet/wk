@@ -8,6 +8,8 @@ import (
 	"github.com/lucas-stellet/wk/internal/worktree"
 )
 
+var removeForce bool
+
 var removeCmd = &cobra.Command{
 	Use:     "remove <branch>",
 	Aliases: []string{"rm"},
@@ -18,13 +20,14 @@ var removeCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(removeCmd)
+	removeCmd.Flags().BoolVarP(&removeForce, "force", "f", false, "Force removal even if worktree has uncommitted changes")
 }
 
 func runRemove(cmd *cobra.Command, args []string) error {
 	target := args[0]
 
 	fmt.Printf("Removing worktree '%s'...\n", target)
-	if err := worktree.Remove(target); err != nil {
+	if err := worktree.Remove(target, removeForce); err != nil {
 		return err
 	}
 

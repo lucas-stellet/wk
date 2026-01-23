@@ -96,8 +96,15 @@ func parseWorktreeList(data []byte) ([]Worktree, error) {
 }
 
 // Remove removes a worktree by path or branch name.
-func Remove(target string) error {
-	cmd := exec.Command("git", "worktree", "remove", target)
+// If force is true, removes even if worktree has uncommitted changes.
+func Remove(target string, force bool) error {
+	args := []string{"worktree", "remove"}
+	if force {
+		args = append(args, "--force")
+	}
+	args = append(args, target)
+
+	cmd := exec.Command("git", args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("git worktree remove failed: %s", strings.TrimSpace(string(output)))
