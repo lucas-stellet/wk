@@ -46,13 +46,35 @@ This creates a `.wk.yaml` file interactively, asking for:
 ### Create a new worktree
 
 ```bash
+# Interactive mode - opens fuzzy finder to select or create branch
+wk new
+
+# Direct mode - specify branch name
 wk new feature-branch
 ```
+
+In interactive mode, you can:
+- Type to filter branches with fuzzy search
+- Select an existing branch
+- Choose "[+] Create new branch..." to create a new one
+- Press `Esc` to cancel
 
 This will:
 1. Run `git worktree add feature-branch`
 2. Copy files listed in `.wk.yaml`
 3. Execute post-creation hooks
+
+### Switch to another worktree
+
+```bash
+# Interactive mode - opens fuzzy finder
+wk switch
+
+# Direct mode - specify branch name
+wk switch feature-branch
+```
+
+Opens a new shell in the selected worktree directory. Type `exit` to return.
 
 ### List worktrees
 
@@ -65,6 +87,10 @@ wk ls
 ### Remove a worktree
 
 ```bash
+# Interactive mode - opens fuzzy finder
+wk remove
+
+# Direct mode - specify branch name
 wk remove feature-branch
 # or
 wk rm feature-branch

@@ -29,17 +29,26 @@ Note: This project has no tests currently.
 
 ### Package Structure
 
-- `cmd/` - Cobra commands (init, new, list, remove). Each file registers one command via `init()`.
+- `cmd/` - Cobra commands (init, new, list, remove, switch). Each file registers one command via `init()`.
 - `internal/config/` - Parses `.wk.yaml` configuration; searches upward from current directory.
-- `internal/worktree/` - Wraps git worktree operations (add, list, remove) via `exec.Command`.
+- `internal/worktree/` - Wraps git worktree operations (add, list, remove) and branch listing via `exec.Command`.
 - `internal/hooks/` - File/directory copying and shell command execution for post-hooks.
+- `internal/selector/` - Interactive fuzzy selection UI using bubbletea/bubbles for branch and worktree selection.
 
-### Flow: `wk new <branch>`
+### Flow: `wk new [branch]`
 
-1. `cmd/new.go` calls `worktree.Add()` to create worktree via `git worktree add`
-2. Loads `.wk.yaml` using `config.FindConfig()` (walks up directory tree)
-3. Calls `hooks.CopyFiles()` to copy specified files from source to new worktree
-4. Calls `hooks.RunPostHooks()` to execute shell commands in the new worktree directory
+1. If no branch specified, opens interactive selector (`selector.SelectOrCreate()`) using bubbletea
+2. `cmd/new.go` calls `worktree.Add()` to create worktree via `git worktree add`
+3. Loads `.wk.yaml` using `config.FindConfig()` (walks up directory tree)
+4. Calls `hooks.CopyFiles()` to copy specified files from source to new worktree
+5. Calls `hooks.RunPostHooks()` to execute shell commands in the new worktree directory
+
+### Interactive Selection
+
+Commands `new`, `switch`, and `remove` support interactive mode when called without arguments:
+- Uses bubbletea/bubbles for TUI with fuzzy filtering
+- `selector.SelectOrCreate()` - for branch selection with option to create new
+- `selector.SelectWorktree()` - for worktree selection
 
 ### Configuration (.wk.yaml)
 
