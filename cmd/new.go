@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,19 +12,23 @@ import (
 
 	"github.com/lucas-stellet/wk/internal/config"
 	"github.com/lucas-stellet/wk/internal/hooks"
+	"github.com/lucas-stellet/wk/internal/selector"
 	"github.com/lucas-stellet/wk/internal/worktree"
 )
 
 var newCmd = &cobra.Command{
-	Use:   "new <branch>",
+	Use:   "new [branch]",
 	Short: "Create a new worktree",
 	Long: `Create a new git worktree and run post-creation hooks.
+
+If branch is not specified, opens an interactive selector to choose an existing
+branch or create a new one.
 
 This command:
   1. Creates a new worktree using git worktree add
   2. Copies files listed in .wk.yaml
   3. Runs post_hooks from .wk.yaml`,
-	Args: cobra.ExactArgs(1),
+	Args: cobra.MaximumNArgs(1),
 	RunE: runNew,
 }
 
@@ -32,7 +37,32 @@ func init() {
 }
 
 func runNew(cmd *cobra.Command, args []string) error {
-	branch := args[0]
+	var branch string
+
+	if len(args) == 1 {
+		branch = args[0]
+	} else {
+		// Interactive mode: select from branches or create new
+		selected, isNew, err := selector.SelectOrCreate(selector.Options{
+			AllowCreate:    true,
+			FilterExisting: true, // don't show branches that already have worktrees
+		})
+		if err != nil {
+			if errors.Is(err, selector.ErrCancelled) {
+				return nil
+			}
+			return err
+		}
+
+		if isNew {
+			branch, err = selector.PromptForBranchName()
+			if err != nil {
+				return err
+			}
+		} else {
+			branch = selected
+		}
+	}
 
 	// Get current directory (source worktree)
 	srcDir, err := os.Getwd()

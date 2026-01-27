@@ -2,15 +2,16 @@ package cmd
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 
+	"github.com/lucas-stellet/wk/internal/selector"
 	"github.com/lucas-stellet/wk/internal/worktree"
 )
 
@@ -30,22 +31,17 @@ func init() {
 }
 
 func runSwitch(cmd *cobra.Command, args []string) error {
-	worktrees, err := worktree.List()
-	if err != nil {
-		return err
-	}
-
-	if len(worktrees) == 0 {
-		return fmt.Errorf("no worktrees found")
-	}
-
 	var targetBranch string
+	var err error
 
 	if len(args) == 1 {
 		targetBranch = args[0]
 	} else {
-		targetBranch, err = selectWorktree(worktrees)
+		targetBranch, err = selector.SelectWorktree()
 		if err != nil {
+			if errors.Is(err, selector.ErrCancelled) {
+				return nil
+			}
 			return err
 		}
 	}
@@ -62,32 +58,6 @@ func runSwitch(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Switching to worktree '%s' at %s\n", wt.Branch, wt.Path)
 	fmt.Println("Type 'exit' to return to the previous shell.")
 	return openShellAt(wt.Path)
-}
-
-func selectWorktree(worktrees []worktree.Worktree) (string, error) {
-	fmt.Println("Available worktrees:")
-	fmt.Println()
-
-	for i, wt := range worktrees {
-		fmt.Printf("  [%d] %s (%s)\n", i+1, wt.Branch, wt.Path)
-	}
-
-	fmt.Println()
-	fmt.Print("Select worktree (number): ")
-
-	reader := bufio.NewReader(os.Stdin)
-	input, err := reader.ReadString('\n')
-	if err != nil {
-		return "", fmt.Errorf("read input: %w", err)
-	}
-
-	input = strings.TrimSpace(input)
-	num, err := strconv.Atoi(input)
-	if err != nil || num < 1 || num > len(worktrees) {
-		return "", fmt.Errorf("invalid selection: %s", input)
-	}
-
-	return worktrees[num-1].Branch, nil
 }
 
 func handleStashIfNeeded() error {

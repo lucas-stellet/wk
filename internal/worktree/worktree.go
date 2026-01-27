@@ -283,3 +283,98 @@ func Move(wt Worktree) (string, error) {
 
 	return newPath, nil
 }
+
+// Branch represents a git branch with metadata.
+type Branch struct {
+	Name        string
+	IsRemote    bool
+	IsLocal     bool
+	CommitShort string
+	CommitDate  string
+}
+
+// ListBranches returns all branches (local and remote) with metadata.
+func ListBranches() ([]Branch, error) {
+	// Get local branches with commit info
+	// Format: %(refname:short)|%(objectname:short)|%(committerdate:relative)
+	cmd := exec.Command("git", "for-each-ref",
+		"--format=%(refname:short)|%(objectname:short)|%(committerdate:relative)",
+		"refs/heads/", "refs/remotes/origin/")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("git for-each-ref failed: %w", err)
+	}
+
+	localBranches := make(map[string]bool)
+	remoteBranches := make(map[string]Branch)
+	var branches []Branch
+
+	scanner := bufio.NewScanner(bytes.NewReader(output))
+	for scanner.Scan() {
+		line := scanner.Text()
+		parts := strings.SplitN(line, "|", 3)
+		if len(parts) != 3 {
+			continue
+		}
+
+		name := parts[0]
+		commitShort := parts[1]
+		commitDate := parts[2]
+
+		if strings.HasPrefix(name, "origin/") {
+			// Remote branch
+			remoteName := strings.TrimPrefix(name, "origin/")
+			if remoteName == "HEAD" {
+				continue
+			}
+			remoteBranches[remoteName] = Branch{
+				Name:        remoteName,
+				IsRemote:    true,
+				IsLocal:     false,
+				CommitShort: commitShort,
+				CommitDate:  commitDate,
+			}
+		} else {
+			// Local branch
+			localBranches[name] = true
+			branches = append(branches, Branch{
+				Name:        name,
+				IsRemote:    false,
+				IsLocal:     true,
+				CommitShort: commitShort,
+				CommitDate:  commitDate,
+			})
+		}
+	}
+
+	// Mark local branches that also exist on remote
+	for i, b := range branches {
+		if _, exists := remoteBranches[b.Name]; exists {
+			branches[i].IsRemote = true
+			delete(remoteBranches, b.Name)
+		}
+	}
+
+	// Add remaining remote-only branches
+	for _, b := range remoteBranches {
+		branches = append(branches, b)
+	}
+
+	return branches, scanner.Err()
+}
+
+// ListWorktreeBranches returns the branch names that have existing worktrees.
+func ListWorktreeBranches() (map[string]bool, error) {
+	worktrees, err := List()
+	if err != nil {
+		return nil, err
+	}
+
+	branches := make(map[string]bool)
+	for _, wt := range worktrees {
+		if wt.Branch != "" && wt.Branch != "(detached)" {
+			branches[wt.Branch] = true
+		}
+	}
+	return branches, nil
+}
