@@ -125,7 +125,12 @@ func (m selectorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.list.SetWidth(msg.Width)
-		m.list.SetHeight(msg.Height - 2)
+		// Limit height to prevent layout issues on very tall screens
+		height := msg.Height - 2
+		if height > 30 {
+			height = 30
+		}
+		m.list.SetHeight(height)
 		return m, nil
 
 	case tea.KeyMsg:
@@ -208,7 +213,7 @@ func SelectOrCreate(opts Options) (string, bool, error) {
 		return "", false, errors.New("no branches available")
 	}
 
-	l := list.New(items, itemDelegate{}, 0, 0)
+	l := list.New(items, itemDelegate{}, 80, 20)
 	l.Title = "Select branch"
 	l.SetShowStatusBar(true)
 	l.SetFilteringEnabled(true)
@@ -256,7 +261,7 @@ func SelectWorktree() (string, error) {
 		})
 	}
 
-	l := list.New(items, itemDelegate{}, 0, 0)
+	l := list.New(items, itemDelegate{}, 80, 20)
 	l.Title = "Select worktree"
 	l.SetShowStatusBar(true)
 	l.SetFilteringEnabled(true)
