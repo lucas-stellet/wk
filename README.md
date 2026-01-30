@@ -2,6 +2,8 @@
 
 A CLI tool to simplify git worktree management with automatic file copying and post-creation hooks.
 
+![wk help](assets/wk-help.gif)
+
 ## Installation
 
 ### Quick install (Linux/macOS)
@@ -35,11 +37,15 @@ go build -o wk .
 
 ### Initialize configuration
 
+Create a `.wk.yaml` configuration file interactively:
+
 ```bash
 wk init
 ```
 
-This creates a `.wk.yaml` file interactively, asking for:
+![wk init](assets/wk-init.gif)
+
+This will ask for:
 - Files/directories to copy to new worktrees
 - Post-creation hooks to run
 
@@ -52,6 +58,8 @@ wk new
 # Direct mode - specify branch name
 wk new feature-branch
 ```
+
+![wk new](assets/wk-new.gif)
 
 In interactive mode, you can:
 - Type to filter branches with fuzzy search
@@ -74,6 +82,8 @@ wk switch
 wk switch feature-branch
 ```
 
+![wk switch](assets/wk-switch.gif)
+
 Opens a new shell in the selected worktree directory. Type `exit` to return.
 
 ### List worktrees
@@ -83,6 +93,8 @@ wk list
 # or
 wk ls
 ```
+
+![wk list](assets/wk-list.gif)
 
 ### Remove a worktree
 
@@ -95,6 +107,8 @@ wk remove feature-branch
 # or
 wk rm feature-branch
 ```
+
+![wk remove](assets/wk-remove.gif)
 
 ## Requirements
 
